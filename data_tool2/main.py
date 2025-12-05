@@ -2,17 +2,24 @@ from analyzer import DataAnalyzer
 from visualizer import DataVisualizer
 from report import Report
 
-file_path = input("분석할 CSV/엑셀 파일 경로 입력: ")
-analyzer = DataAnalyzer(file_path)
-df = analyzer.load()
-stats = analyzer.summary_stats()
+file_path = input("분석할 CSV/엑셀 파일을 입력하세요: ").strip()
 
+# 1️⃣ 분석기 생성
+analyzer = DataAnalyzer(file_path)
+
+# 2️⃣ 반드시 먼저 데이터 로드!
+df = analyzer.load()
+
+# 3️⃣ 통계 계산
+stats = analyzer.describe()
+
+# 4️⃣ 시각화 생성
 visualizer = DataVisualizer(df)
 figures = []
-for col in df.select_dtypes(include=["int","float"]).columns:
-    figures.append(visualizer.histogram(col))
-    figures.append(visualizer.boxplot(col))
-figures.append(visualizer.correlation_heatmap())
+figures.extend(visualizer.numeric_histograms())
+figures.extend(visualizer.correlation_heatmap())
 
-report = Report(stats, figures)
-report.generate_html("my_report.html")
+# 5️⃣ 보고서 생성
+report = Report(stats=stats, figures=figures, df=df)
+report.generate_html("analysis_report.html")
+

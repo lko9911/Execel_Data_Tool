@@ -1,28 +1,179 @@
 from plotly.subplots import make_subplots
 import plotly.io as pio
+import numpy as np
+import math
 
 class Report:
-    def __init__(self, stats, figures):
+    def __init__(self, stats, figures, df):
         self.stats = stats
         self.figures = figures
+        self.df = df
+
+    # 안전하게 숫자 포맷팅
+    def safe_value(self, val, digits=3):
+        if val is None:
+            return "-"
+
+        if isinstance(val, (float, int)):
+            if math.isnan(val):
+                return "-"
+            return round(val, digits)
+
+        return str(val)
+
+    def describe(self):
+        stats = {}
+        numeric_df = self.df.select_dtypes(include=['number'])
+
+        for col in numeric_df.columns:
+            stats[col] = {
+                "mean": numeric_df[col].mean(),
+                "std": numeric_df[col].std(),
+                "min": numeric_df[col].min(),
+                "max": numeric_df[col].max(),
+                "missing": numeric_df[col].isna().sum()
+            }
+        return stats
 
     def generate_html(self, output_file="report.html"):
         html_parts = []
 
-        # 통계 요약
-        html_parts.append("<h1>데이터 분석 보고서</h1>")
-        for col, stat in self.stats.items():
-            html_parts.append(f"<h2>{col}</h2>")
-            html_parts.append("<ul>")
-            for k, v in stat.items():
-                html_parts.append(f"<li>{k}: {v}</li>")
-            html_parts.append("</ul>")
+        # ------------------------
+        # CSS
+        # ------------------------
+        html_style = """
+        <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            background: linear-gradient(90deg, #005eff, #00d4ff);
+            padding: 40px 30px;
+            color: white;
+            text-shadow: 1px 1px 3px black;
+        }
+        h1 {
+            margin: 0;
+            font-size: 38px;
+            font-weight: 700;
+        }
+        .section {
+            margin: 30px auto;
+            width: 90%;
+            background: #1e1e1e;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.4);
+        }
+        .card-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #00d4ff;
+        }
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .stats-table th, .stats-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        .stats-table th {
+            background: #222;
+            color: #00d4ff;
+        }
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #888;
+        }
+        </style>
+        """
 
-        # 그래프 삽입
+        # ------------------------
+        # Header
+        # ------------------------
+        html_parts.append("""
+        <div class="header">
+            <h1>📊 데이터 분석 보고서</h1>
+            <p>자동 생성된 Plotly 기반 분석 리포트</p>
+        </div>
+        """)
+
+        # ------------------------
+        # 데이터 정보
+        # ------------------------
+        html_parts.append(f"""
+        <div class="section">
+            <div class="card-title">📁 데이터셋 정보</div>
+            <p>총 행(row): {len(self.df)}</p>
+            <p>총 열(column): {len(self.df.columns)}</p>
+        </div>
+        """)
+
+        # ------------------------
+        # 기본 통계
+        # ------------------------
+        html_parts.append("""
+        <div class="section">
+            <div class="card-title">📌 기본 통계 요약</div>
+        """)
+
+        html_parts.append("<table class='stats-table'>")
+        html_parts.append(
+            "<tr><th>컬럼</th><th>평균</th><th>표준편차</th><th>최소</th><th>최대</th><th>결측치</th></tr>"
+        )
+
+        for col, stat in self.stats.items():
+            html_parts.append(f"""
+                <tr>
+                    <td>{col}</td>
+                    <td>{self.safe_value(stat['mean'])}</td>
+                    <td>{self.safe_value(stat['std'])}</td>
+                    <td>{self.safe_value(stat['min'])}</td>
+                    <td>{self.safe_value(stat['max'])}</td>
+                    <td>{self.safe_value(stat['missing'])}</td>
+                </tr>
+            """)
+
+        html_parts.append("</table></div>")
+
+        # ------------------------
+        # Plotly Figures
+        # ------------------------
+        html_parts.append("""
+        <div class="section">
+            <div class="card-title">📈 시각화 분석</div>
+        """)
+
         for fig in self.figures:
+            if not hasattr(fig, "update_layout"):
+                continue  # 문자열/None/잘못된 객체 무시
+
+            fig.update_layout(template="plotly_dark")
             html_parts.append(fig.to_html(full_html=False, include_plotlyjs='cdn'))
 
-        # HTML 저장
+
+        html_parts.append("</div>")
+
+        # ------------------------
+        # Footer
+        # ------------------------
+        html_parts.append("""
+        <div class="footer">
+            <p>Generated by Python + Plotly</p>
+        </div>
+        """)
+
+        # ------------------------
+        # 저장
+        # ------------------------
         with open(output_file, "w", encoding="utf-8") as f:
-            f.write("\n".join(html_parts))
-        print(f"보고서 생성 완료: {output_file}")
+            f.write(html_style + "\n".join(html_parts))
+
+        print(f"📄 보고서 생성 완료: {output_file}")
