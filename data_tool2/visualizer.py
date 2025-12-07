@@ -30,7 +30,7 @@ class DataVisualizer:
 
         return fig
 
-    # ✔ 수치형 컬럼 히스토그램 자동 생성
+    # 수치형 컬럼 히스토그램 자동 생성
     def numeric_histograms(self):
         figures = []
         numeric_cols = self.df.select_dtypes(include=['number']).columns
@@ -46,7 +46,7 @@ class DataVisualizer:
             ))
 
             fig.update_layout(
-                title=f"📊 Histogram: {col}",
+                title=f"📊 {col}",
                 xaxis_title=col,
                 yaxis_title="Count",
                 template='plotly_white',
